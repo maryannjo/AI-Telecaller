@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AI Telecaller</title>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .container {
+      width: 400px;
+      background: #111827;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    h2 {
+      text-align: center;
+      color: #38bdf8;
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      outline: none;
+    }
+
+    .btn {
+      width: 48%;
+      padding: 10px;
+      margin-top: 5px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .send {
+      background: #22c55e;
+      color: white;
+    }
+
+    .mic {
+      background: #3b82f6;
+      color: white;
+      float: right;
+    }
+
+    .response-box {
+      margin-top: 20px;
+      padding: 15px;
+      background: #1f2937;
+      border-radius: 10px;
+      min-height: 60px;
+      border-left: 4px solid #38bdf8;
+    }
+
+    .label {
+      font-size: 12px;
+      opacity: 0.7;
+      margin-bottom: 5px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+
+    <h2>📞 AI Telecaller</h2>
+
+    <div class="label">Your message</div>
+    <input type="text" id="message" placeholder="Type or speak..." />
+
+    <button class="btn send" onclick="sendMessage()">Send</button>
+    <button class="btn mic" onclick="startListening()">🎤 Speak</button>
+
+    <div style="clear: both;"></div>
+
+    <div class="response-box">
+      <div class="label">AI Response</div>
+      <div id="response">Waiting for input...</div>
+    </div>
+
+  </div>
+
+  <script>
+    async function sendMessage() {
+      const message = document.getElementById("message").value;
+
+      const res = await fetch("http://localhost:3000/ask", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ message })
+      });
+
+      const data = await res.json();
+      document.getElementById("response").innerText = data.reply;
+    }
+
+    function startListening() {
+      const SpeechRecognition =
+        window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (!SpeechRecognition) {
+        alert("Speech Recognition not supported in this browser");
+        return;
+      }
+
+      const recognition = new SpeechRecognition();
+      recognition.lang = "en-IN";
+      recognition.interimResults = false;
+
+      recognition.start();
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        document.getElementById("message").value = transcript;
+        sendMessage();
+      };
+    }
+  </script>
+
+</body>
+</html>

@@ -92,12 +92,31 @@
 
     <div class="response-box">
       <div class="label">AI Response</div>
-      <div id="response">Waiting for input...</div>
+      <div id="response">Waiting for AI to start...</div>
     </div>
 
   </div>
 
   <script>
+    // ==========================
+    // 🚀 AI STARTS FIRST (THIS IS YOUR useEffect REPLACEMENT)
+    // ==========================
+    window.addEventListener("DOMContentLoaded", async () => {
+      try {
+        const res = await fetch("http://localhost:3000/start");
+        const data = await res.json();
+
+        document.getElementById("response").innerText = data.reply;
+      } catch (err) {
+        console.error("Error starting chat:", err);
+        document.getElementById("response").innerText =
+          "Failed to start AI conversation";
+      }
+    });
+
+    // ==========================
+    // SEND MESSAGE
+    // ==========================
     async function sendMessage() {
       const message = document.getElementById("message").value;
 
@@ -113,6 +132,9 @@
       document.getElementById("response").innerText = data.reply;
     }
 
+    // ==========================
+    // SPEECH INPUT
+    // ==========================
     function startListening() {
       const SpeechRecognition =
         window.SpeechRecognition || window.webkitSpeechRecognition;

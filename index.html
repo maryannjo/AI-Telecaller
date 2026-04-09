@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AI Telecaller</title>
+  <title>AI Voice Caller (ElevenLabs)</title>
 
   <style>
     body {
@@ -16,7 +16,7 @@
     }
 
     .container {
-      width: 400px;
+      width: 420px;
       background: #111827;
       padding: 25px;
       border-radius: 15px;
@@ -26,137 +26,271 @@
     h2 {
       text-align: center;
       color: #38bdf8;
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     }
 
-    input {
-      width: 100%;
-      padding: 12px;
-      border: none;
+    .status {
+      text-align: center;
+      font-size: 12px;
+      opacity: 0.7;
+      margin-bottom: 10px;
+    }
+
+    .chat-box {
+      height: 250px;
+      overflow-y: auto;
+      padding: 10px;
+      background: #1f2937;
       border-radius: 10px;
       margin-bottom: 10px;
-      outline: none;
     }
 
-    .btn {
-      width: 48%;
+    .msg {
+      margin: 6px 0;
+      padding: 8px;
+      border-radius: 8px;
+    }
+
+    .user {
+      background: #22c55e;
+      text-align: right;
+    }
+
+    .bot {
+      background: #374151;
+      text-align: left;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+    }
+
+    button {
+      flex: 1;
       padding: 10px;
-      margin-top: 5px;
       border: none;
       border-radius: 10px;
       cursor: pointer;
       font-weight: bold;
     }
 
-    .send {
-      background: #22c55e;
-      color: white;
-    }
+    .start { background: #3b82f6; color: white; }
+    .stop { background: #ef4444; color: white; }
+    .send { background: #22c55e; color: white; }
 
-    .mic {
-      background: #3b82f6;
-      color: white;
-      float: right;
-    }
-
-    .response-box {
-      margin-top: 20px;
-      padding: 15px;
-      background: #1f2937;
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
       border-radius: 10px;
-      min-height: 60px;
-      border-left: 4px solid #38bdf8;
-    }
-
-    .label {
-      font-size: 12px;
-      opacity: 0.7;
-      margin-bottom: 5px;
+      border: none;
+      outline: none;
     }
   </style>
 </head>
 
 <body>
 
-  <div class="container">
+<div class="container">
 
-    <h2>📞 AI Telecaller</h2>
+  <h2>📞 AI Voice Caller</h2>
+  <div class="status" id="status">Idle</div>
 
-    <div class="label">Your message</div>
-    <input type="text" id="message" placeholder="Type or speak..." />
-
-    <button class="btn send" onclick="sendMessage()">Send</button>
-    <button class="btn mic" onclick="startListening()">🎤 Speak</button>
-
-    <div style="clear: both;"></div>
-
-    <div class="response-box">
-      <div class="label">AI Response</div>
-      <div id="response">Waiting for AI to start...</div>
-    </div>
-
+  <div class="chat-box" id="chatBox">
+    <div class="msg bot">AI is ready...</div>
   </div>
 
-  <script>
-    // ==========================
-    // 🚀 AI STARTS FIRST (THIS IS YOUR useEffect REPLACEMENT)
-    // ==========================
-    window.addEventListener("DOMContentLoaded", async () => {
-      try {
-        const res = await fetch("http://localhost:3000/start");
-        const data = await res.json();
+  <input id="message" placeholder="Type or speak..." />
 
-        document.getElementById("response").innerText = data.reply;
-      } catch (err) {
-        console.error("Error starting chat:", err);
-        document.getElementById("response").innerText =
-          "Failed to start AI conversation";
-      }
+  <div class="controls">
+    <button class="start" onclick="startCall()">Start Call</button>
+    <button class="stop" onclick="stopCall()">Stop</button>
+    <button class="send" onclick="sendMessage()">Send</button>
+  </div>
+
+</div>
+
+<script>
+
+let isCallActive = false;
+let isSpeaking = false;
+let currentAudio = null;
+
+// ==========================
+// UI HELPERS
+// ==========================
+function setStatus(text) {
+  document.getElementById("status").innerText = text;
+}
+
+function addMessage(role, text) {
+  const chatBox = document.getElementById("chatBox");
+
+  const div = document.createElement("div");
+  div.classList.add("msg", role);
+  div.innerText = text;
+
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+// ==========================
+// 🔊 PLAY AUDIO FROM /tts (NEW FIX)
+// ==========================
+async function playAudioFromTTS(text, onEnd) {
+  try {
+    const res = await fetch("http://localhost:3000/tts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text })
     });
 
-    // ==========================
-    // SEND MESSAGE
-    // ==========================
-    async function sendMessage() {
-      const message = document.getElementById("message").value;
+    if (!res.ok) throw new Error("TTS failed");
 
-      const res = await fetch("http://localhost:3000/ask", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ message })
-      });
+    const audioBlob = await res.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
 
-      const data = await res.json();
-      document.getElementById("response").innerText = data.reply;
+    if (currentAudio) {
+      currentAudio.pause();
     }
 
-    // ==========================
-    // SPEECH INPUT
-    // ==========================
-    function startListening() {
-      const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
+    currentAudio = new Audio(audioUrl);
 
-      if (!SpeechRecognition) {
-        alert("Speech Recognition not supported in this browser");
-        return;
-      }
+    isSpeaking = true;
+    setStatus("AI Speaking... 🔊");
 
-      const recognition = new SpeechRecognition();
-      recognition.lang = "en-IN";
-      recognition.interimResults = false;
+    currentAudio.play();
 
-      recognition.start();
+    currentAudio.onended = () => {
+      isSpeaking = false;
+      setStatus("Listening... 🎤");
 
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        document.getElementById("message").value = transcript;
-        sendMessage();
-      };
-    }
-  </script>
+      if (onEnd && isCallActive) onEnd();
+    };
+
+  } catch (err) {
+    console.error("Audio error:", err);
+    setStatus("Audio playback failed");
+    if (onEnd) onEnd();
+  }
+}
+
+// ==========================
+// 🎤 SPEECH TO TEXT
+// ==========================
+function listen() {
+  if (!isCallActive || isSpeaking) return;
+
+  const SpeechRecognition =
+    window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (!SpeechRecognition) {
+    alert("Speech not supported in this browser");
+    return;
+  }
+
+  const recognition = new SpeechRecognition();
+  recognition.lang = "en-IN";
+  recognition.interimResults = false;
+
+  setStatus("Listening... 🎤");
+
+  recognition.start();
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+
+    addMessage("user", transcript);
+    sendToAI(transcript);
+  };
+
+  recognition.onerror = () => {
+    setStatus("Mic error, retrying...");
+    if (isCallActive) listen();
+  };
+}
+
+// ==========================
+// 🤖 SEND TO BACKEND
+// ==========================
+async function sendToAI(message) {
+  try {
+    const res = await fetch("http://localhost:3000/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message, sessionId: "default" })
+    });
+
+    const data = await res.json();
+
+    addMessage("bot", data.reply);
+
+    // 🔥 IMPORTANT CHANGE: use /tts instead of base64
+    await playAudioFromTTS(data.reply, () => {
+      listen();
+    });
+
+  } catch (err) {
+    console.error(err);
+    setStatus("Server error");
+  }
+}
+
+// ==========================
+// 🚀 START CALL
+// ==========================
+async function startCall() {
+  isCallActive = true;
+  setStatus("Starting Call...");
+
+  try {
+    const res = await fetch("http://localhost:3000/start");
+    const data = await res.json();
+
+    addMessage("bot", data.reply);
+
+    await playAudioFromTTS(data.reply, () => {
+      listen();
+    });
+
+  } catch (err) {
+    console.error(err);
+    setStatus("Failed to start call");
+  }
+}
+
+// ==========================
+// 🛑 STOP CALL
+// ==========================
+function stopCall() {
+  isCallActive = false;
+  isSpeaking = false;
+
+  setStatus("Call Ended");
+
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio = null;
+  }
+
+  window.speechSynthesis.cancel();
+}
+
+// ==========================
+// 📤 MANUAL SEND
+// ==========================
+function sendMessage() {
+  const msg = document.getElementById("message").value;
+  if (!msg) return;
+
+  addMessage("user", msg);
+  sendToAI(msg);
+
+  document.getElementById("message").value = "";
+}
+
+</script>
 
 </body>
 </html>

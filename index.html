@@ -1,112 +1,249 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AI Voice Caller (US Voice Upgrade)</title>
+  <title>AI Voice Caller - SaaS Dashboard v3</title>
 
   <style>
+    * {
+      box-sizing: border-box;
+      font-family: "Segoe UI", system-ui, sans-serif;
+    }
+
     body {
       margin: 0;
-      font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #0f172a, #1e293b);
-      color: white;
+      background: #0a0f1c;
+      color: #e5e7eb;
+      height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
     }
 
-    .container {
-      width: 420px;
-      background: #111827;
-      padding: 25px;
-      border-radius: 15px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    /* MASTER GRID */
+    .app {
+      width: 1300px;
+      height: 760px;
+      display: grid;
+      grid-template-columns: 260px 1.6fr 340px;
+      gap: 14px;
     }
 
-    h2 {
-      text-align: center;
+    .panel {
+      background: #0f172a;
+      border: 1px solid rgba(148,163,184,0.12);
+      border-radius: 14px;
+      padding: 14px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 13px;
       color: #38bdf8;
-      margin-bottom: 15px;
+      letter-spacing: 0.5px;
     }
 
-    .status {
-      text-align: center;
-      font-size: 12px;
-      opacity: 0.7;
-      margin-bottom: 10px;
-    }
-
-    .chat-box {
-      height: 250px;
-      overflow-y: auto;
+    /* LEFT: CUSTOMER LIST */
+    .customer {
       padding: 10px;
-      background: #1f2937;
+      background: #0b1220;
       border-radius: 10px;
       margin-bottom: 10px;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: 0.2s;
+      font-size: 12px;
+    }
+
+    .customer:hover {
+      border-color: #38bdf8;
+      transform: translateY(-1px);
+    }
+
+    .active {
+      border-color: #22c55e !important;
+    }
+
+    /* CENTER CHAT */
+    .status {
+      padding: 6px;
+      font-size: 12px;
+      border-radius: 999px;
+      text-align: center;
+      margin-bottom: 10px;
+      background: rgba(148,163,184,0.1);
+      color: #94a3b8;
+    }
+
+    .chat {
+      height: 520px;
+      overflow-y: auto;
+      background: #0b1220;
+      border-radius: 12px;
+      padding: 10px;
+      border: 1px solid rgba(255,255,255,0.05);
     }
 
     .msg {
+      font-size: 12px;
+      padding: 10px;
       margin: 6px 0;
-      padding: 8px;
-      border-radius: 8px;
+      border-radius: 10px;
+      max-width: 80%;
     }
 
     .user {
       background: #22c55e;
-      text-align: right;
+      color: #052e12;
+      margin-left: auto;
     }
 
     .bot {
-      background: #374151;
-      text-align: left;
+      background: #1f2937;
+      margin-right: auto;
     }
-
-    .controls {
-      display: flex;
-      gap: 10px;
-    }
-
-    button {
-      flex: 1;
-      padding: 10px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      font-weight: bold;
-    }
-
-    .start { background: #3b82f6; color: white; }
-    .stop { background: #ef4444; color: white; }
-    .send { background: #22c55e; color: white; }
 
     input {
       width: 100%;
       padding: 10px;
       margin-top: 10px;
       border-radius: 10px;
-      border: none;
-      outline: none;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #0b1220;
+      color: white;
     }
+
+    .btns {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    button {
+      flex: 1;
+      padding: 10px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .start { background: #2563eb; color: white; }
+    .stop { background: #dc2626; color: white; }
+    .send { background: #16a34a; color: white; }
+
+    /* RIGHT PANEL */
+    .meter {
+      height: 8px;
+      background: #0b1220;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+
+    .fill {
+      height: 100%;
+      width: 50%;
+      background: linear-gradient(90deg, #ef4444, #f59e0b, #22c55e);
+      transition: 0.4s;
+    }
+
+    .stat {
+      font-size: 12px;
+      margin: 6px 0;
+      color: #cbd5e1;
+    }
+
+    /* ADMIN */
+    .adminBox {
+      background: #0b1220;
+      padding: 10px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      font-size: 12px;
+    }
+
+    /* LIVE PULSE */
+    .pulse {
+      width: 8px;
+      height: 8px;
+      background: #22c55e;
+      border-radius: 50%;
+      display: inline-block;
+      animation: pulse 1s infinite;
+      margin-right: 6px;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(1); opacity: 1; }
+      50% { transform: scale(1.6); opacity: 0.4; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
   </style>
 </head>
 
 <body>
 
-<div class="container">
+<div class="app">
 
-  <h2>📞 AI Voice Caller (US Voice)</h2>
-  <div class="status" id="status">Idle</div>
+  <!-- LEFT: MULTI CUSTOMER -->
+  <div class="panel">
+    <h3>🧑‍🤝‍🧑 LEADS</h3>
 
-  <div class="chat-box" id="chatBox">
-    <div class="msg bot">AI is ready...</div>
+    <div class="customer active" onclick="switchUser('Aarav')">Aarav - Hot Lead </div>
+    <div class="customer" onclick="switchUser('Meera')">Meera - Warm Lead </div>
+    <div class="customer" onclick="switchUser('John')">John - Cold Lead </div>
   </div>
 
-  <input id="message" placeholder="Type or speak..." />
+  <!-- CENTER -->
+  <div class="panel">
 
-  <div class="controls">
-    <button class="start" onclick="startCall()">Start Call</button>
-    <button class="stop" onclick="stopCall()">Stop</button>
-    <button class="send" onclick="sendMessage()">Send</button>
+    <h3>📞 AI CALL AGENT</h3>
+
+    <div class="status" id="status">
+      <span class="pulse"></span>Idle
+    </div>
+
+    <div class="chat" id="chatBox">
+      <div class="msg bot">AI ready for call...</div>
+    </div>
+
+    <input id="message" placeholder="Type or speak..." />
+
+    <div class="btns">
+      <button class="start" onclick="startCall()">Start</button>
+      <button class="stop" onclick="stopCall()">Stop</button>
+      <button class="send" onclick="sendMessage()">Send</button>
+    </div>
+
+  </div>
+
+  <!-- RIGHT: ANALYTICS -->
+  <div class="panel">
+
+    <h3>📊 ADMIN ANALYTICS</h3>
+
+    <div class="adminBox">
+      <b>Total Calls:</b> <span id="calls">12</span><br>
+      <b>Hot Leads:</b> <span id="hot">3</span><br>
+      <b>Conversion:</b> <span>18%</span>
+    </div>
+
+    <h3>🔥 LIVE LEAD SCORE</h3>
+
+    <div class="meter">
+      <div class="fill" id="interestBar"></div>
+    </div>
+
+    <div class="stat" id="interestText">Warm Lead</div>
+
+    <hr style="border:0;border-top:1px solid rgba(255,255,255,0.05);margin:10px 0;">
+
+    <div class="stat">🎭 Emotion: Neutral</div>
+    <div class="stat">🎯 Intent: Exploring</div>
+    <div class="stat">⚡ WebSocket Feed: ACTIVE</div>
+
   </div>
 
 </div>
@@ -114,198 +251,113 @@
 <script>
 
 let isCallActive = false;
-let isSpeaking = false;
-let selectedVoice = null;
+let selectedUser = "Aarav";
+let interest = 60;
 
-// ==========================
-// UI HELPERS
-// ==========================
+// SWITCH USER (MULTI CUSTOMER)
+function switchUser(name) {
+  selectedUser = name;
+  document.querySelectorAll(".customer").forEach(c => c.classList.remove("active"));
+  event.target.classList.add("active");
+
+  document.getElementById("chatBox").innerHTML =
+    `<div class='msg bot'>Switched to ${name}</div>`;
+
+  simulateSocket("Switched lead: " + name);
+}
+
+// STATUS
 function setStatus(text) {
-  document.getElementById("status").innerText = text;
+  document.getElementById("status").innerHTML =
+    `<span class='pulse'></span>${text}`;
 }
 
+// CHAT
 function addMessage(role, text) {
-  const chatBox = document.getElementById("chatBox");
-
+  const box = document.getElementById("chatBox");
   const div = document.createElement("div");
-  div.classList.add("msg", role);
+  div.className = "msg " + role;
   div.innerText = text;
-
-  chatBox.appendChild(div);
-  chatBox.scrollTop = chatBox.scrollHeight;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
 }
 
-// ==========================
-// 🇺🇸 LOAD US VOICE
-// ==========================
-function loadVoices() {
-  const voices = window.speechSynthesis.getVoices();
-
-  selectedVoice =
-    voices.find(v =>
-      v.lang === "en-US" &&
-      (
-        v.name.toLowerCase().includes("google") ||
-        v.name.toLowerCase().includes("microsoft") ||
-        v.name.toLowerCase().includes("david") ||
-        v.name.toLowerCase().includes("aria") ||
-        v.name.toLowerCase().includes("zira")
-      )
-    ) || voices.find(v => v.lang === "en-US");
-
-  console.log("🎤 Voice selected:", selectedVoice?.name);
+// LIVE SOCKET SIMULATION
+function simulateSocket(msg) {
+  console.log("📡 WS EVENT:", msg);
 }
 
-window.speechSynthesis.onvoiceschanged = loadVoices;
-loadVoices();
+// INTEREST ENGINE
+function updateInterest(val) {
+  interest += val;
+  interest = Math.max(0, Math.min(100, interest));
 
-// ==========================
-// 🧠 HUMANIZE TEXT
-// ==========================
-function humanizeText(text) {
-  return text
-    .replace(/([.!?])\s*/g, "$1 ... ")
-    .replace(/\b(very|really)\b/g, "")
-    .trim();
+  document.getElementById("interestBar").style.width = interest + "%";
+
+  let label = "Cold";
+  if (interest > 75) label = " Hot";
+  else if (interest > 50) label = " Warm";
+  else label = " Cold";
+
+  document.getElementById("interestText").innerText = label;
 }
 
-// ==========================
-// 🔊 US HUMAN SPEECH ENGINE
-// ==========================
-function speakHuman(text, onEnd) {
-  if (!isCallActive) return;
-
-  const utterance = new SpeechSynthesisUtterance();
-
-  utterance.voice = selectedVoice;
-  utterance.lang = "en-US";
-
-  utterance.rate = 1.02;   // natural
-  utterance.pitch = 0.98;  // human tone
-  utterance.volume = 1;
-
-  utterance.text = humanizeText(text);
-
-  setStatus("AI Speaking... 🔊");
-
-  isSpeaking = true;
-
-  utterance.onend = () => {
-    isSpeaking = false;
-    setStatus("Listening... 🎤");
-    if (onEnd && isCallActive) onEnd();
-  };
-
-  speechSynthesis.cancel();
-  speechSynthesis.speak(utterance);
-}
-
-// ==========================
-// 🎤 SPEECH TO TEXT
-// ==========================
-function listen() {
-  if (!isCallActive || isSpeaking) return;
-
-  const SpeechRecognition =
-    window.SpeechRecognition || window.webkitSpeechRecognition;
-
-  if (!SpeechRecognition) {
-    alert("Speech not supported in this browser");
-    return;
-  }
-
-  const recognition = new SpeechRecognition();
-  recognition.lang = "en-IN";
-  recognition.interimResults = false;
-
-  setStatus("Listening... 🎤");
-
-  recognition.start();
-
-  recognition.onresult = (event) => {
-    const transcript = event.results[0][0].transcript;
-
-    addMessage("user", transcript);
-    sendToAI(transcript);
-  };
-
-  recognition.onerror = () => {
-    setStatus("Mic error, retrying...");
-    if (isCallActive) listen();
-  };
-}
-
-// ==========================
-// 🤖 SEND TO BACKEND
-// ==========================
-async function sendToAI(message) {
-  try {
-    const res = await fetch("http://localhost:3000/ask", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, sessionId: "default" })
-    });
-
-    const data = await res.json();
-
-    addMessage("bot", data.reply);
-
-    speakHuman(data.reply, () => {
-      listen();
-    });
-
-  } catch (err) {
-    console.error(err);
-    setStatus("Server error");
-  }
-}
-
-// ==========================
-// 🚀 START CALL
-// ==========================
+// START
 async function startCall() {
   isCallActive = true;
-  setStatus("Starting Call...");
+  setStatus("Connecting Call...");
 
-  try {
-    const res = await fetch("http://localhost:3000/start");
-    const data = await res.json();
+  const res = await fetch("http://localhost:3000/start");
+  const data = await res.json();
 
-    addMessage("bot", data.reply);
+  addMessage("bot", data.reply);
+  simulateSocket("Call started");
 
-    speakHuman(data.reply, () => {
-      listen();
-    });
-
-  } catch (err) {
-    console.error(err);
-    setStatus("Failed to start call");
-  }
+  speak(data.reply);
 }
 
-// ==========================
-// 🛑 STOP CALL
-// ==========================
+// STOP
 function stopCall() {
   isCallActive = false;
-  isSpeaking = false;
-
-  setStatus("Call Ended");
-
   speechSynthesis.cancel();
+  setStatus("Call Ended");
 }
 
-// ==========================
-// 📤 MANUAL SEND
-// ==========================
-function sendMessage() {
-  const msg = document.getElementById("message").value;
-  if (!msg) return;
+// SPEAK
+function speak(text) {
+  const u = new SpeechSynthesisUtterance(text);
 
-  addMessage("user", msg);
-  sendToAI(msg);
+  setStatus("Speaking...");
 
-  document.getElementById("message").value = "";
+  u.onend = () => {
+    setStatus("Listening...");
+    updateInterest(Math.random() * 10);
+  };
+
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+
+// SEND
+async function sendMessage() {
+  const input = document.getElementById("message");
+  if (!input.value) return;
+
+  addMessage("user", input.value);
+  updateInterest(Math.random() * 12);
+
+  const res = await fetch("http://localhost:3000/ask", {
+    method: "POST",
+    headers: {"Content-Type":"application/json"},
+    body: JSON.stringify({message: input.value})
+  });
+
+  const data = await res.json();
+
+  addMessage("bot", data.reply);
+  speak(data.reply);
+
+  input.value = "";
 }
 
 </script>

@@ -2,10 +2,19 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import axios from "axios";
+import { createClient } from "@supabase/supabase-js";
 
 dotenv.config();
 
 const app = express();
+
+// ==========================
+// 🔐 SUPABASE SETUP
+// ==========================
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_ANON_KEY
+);
 
 // ==========================
 // MIDDLEWARE
@@ -14,6 +23,46 @@ app.use(cors());
 app.use(express.json());
 
 console.log("🔥 Insurance AI Telecaller Server Running");
+
+// ==========================
+// 🧠 EMOTION DETECTION (FastAPI)
+// ==========================
+async function detectEmotion(text) {
+  try {
+    const res = await axios.post(
+      "http://127.0.0.1:5001/emotion",
+      { text }
+    );
+    return res.data;
+  } catch (err) {
+    console.error("Emotion API Error:", err.message);
+    return { emotion: "neutral", confidence: 0 };
+  }
+}
+
+// ==========================
+// 🧠 STORE LEAD (SUPABASE)
+// ==========================
+async function storeLead(data) {
+  try {
+    const { error } = await supabase.from("leads").insert([
+      {
+        name: data.name || "Unknown",
+        phone: data.phone || "N/A",
+        interest: data.interest || "unknown",
+        query: data.query || "",
+      },
+    ]);
+
+    if (error) {
+      console.log("❌ Error storing lead:", error.message);
+    } else {
+      console.log("✅ Lead stored successfully");
+    }
+  } catch (err) {
+    console.log("❌ Supabase crash:", err.message);
+  }
+}
 
 // ==========================
 // 🧠 INSURANCE PRODUCT CATALOG
@@ -28,9 +77,9 @@ const insurancePlans = [
       "Accidental death cover included",
       "Critical illness rider (25 diseases)",
       "Tax benefits under 80C",
-      "Family income protection"
+      "Family income protection",
     ],
-    pitch: "Best for family financial protection and long-term security."
+    pitch: "Best for family financial protection and long-term security.",
   },
   {
     name: "HealthShield MaxCare",
@@ -41,9 +90,9 @@ const insurancePlans = [
       "Cashless hospital network (5000+ hospitals)",
       "Pre + post hospitalization cover",
       "Free annual health checkup",
-      "No claim bonus up to 50%"
+      "No claim bonus up to 50%",
     ],
-    pitch: "Best for rising medical costs and emergency protection."
+    pitch: "Best for rising medical costs and emergency protection.",
   },
   {
     name: "WealthGrow Endowment Plan",
@@ -54,9 +103,9 @@ const insurancePlans = [
       "Guaranteed maturity returns",
       "Life cover during policy term",
       "Long-term wealth creation",
-      "Low-risk savings instrument"
+      "Low-risk savings instrument",
     ],
-    pitch: "Perfect for wealth creation + insurance protection combined."
+    pitch: "Perfect for wealth creation + insurance protection combined.",
   },
   {
     name: "FutureSecure Child Plan",
@@ -67,10 +116,10 @@ const insurancePlans = [
       "Guaranteed education funding",
       "Premium waiver on parent death",
       "Milestone payouts",
-      "Inflation protection option"
+      "Inflation protection option",
     ],
-    pitch: "Designed to secure your child’s education future."
-  }
+    pitch: "Designed to secure your child’s education future.",
+  },
 ];
 
 // ==========================
@@ -82,7 +131,7 @@ function getSession(sessionId = "default") {
   if (!sessions[sessionId]) {
     sessions[sessionId] = {
       state: "GREETING",
-      history: []
+      history: [],
     };
   }
   return sessions[sessionId];
@@ -97,7 +146,7 @@ function detectIntent(message = "") {
   if (msg.includes("not interested")) return "OBJECTION";
   if (msg.includes("busy")) return "DELAY";
   if (msg.includes("price") || msg.includes("expensive")) return "PRICE";
-  if (msg.includes("later") || msg.includes("call me later")) return "FOLLOW_UP";
+  if (msg.includes("later")) return "FOLLOW_UP";
   if (msg.includes("yes") || msg.includes("ok") || msg.includes("sure"))
     return "INTERESTED";
 
@@ -124,70 +173,22 @@ function decideAction(intent, session) {
 function recommendPlan(message = "") {
   const msg = message.toLowerCase();
 
-  if (msg.includes("health") || msg.includes("hospital"))
-    return insurancePlans[1];
-
-  if (msg.includes("child") || msg.includes("education"))
-    return insurancePlans[3];
-
-  if (msg.includes("investment") || msg.includes("saving"))
-    return insurancePlans[2];
-
-  if (msg.includes("family") || msg.includes("life"))
-    return insurancePlans[0];
+  if (msg.includes("health")) return insurancePlans[1];
+  if (msg.includes("child")) return insurancePlans[3];
+  if (msg.includes("investment")) return insurancePlans[2];
+  if (msg.includes("family")) return insurancePlans[0];
 
   return insurancePlans[Math.floor(Math.random() * insurancePlans.length)];
-}
-
-// ==========================
-// 🔊 ELEVENLABS TTS FUNCTION (FIXED)
-// ==========================
-async function generateSpeech(text) {
-  try {
-    const response = await axios({
-      method: "POST",
-      url: "https://api.elevenlabs.io/v1/text-to-speech/21m00Tcm4TlvDq8ikWAM",
-      data: {
-        text,
-        model_id: "eleven_multilingual_v2",
-        voice_settings: {
-          stability: 0.65,
-          similarity_boost: 0.85,
-          style: 0.4,
-          use_speaker_boost: true
-        }
-      },
-      headers: {
-        "xi-api-key": process.env.ELEVENLABS_API_KEY,
-        "Content-Type": "application/json",
-        "Accept": "audio/mpeg"
-      },
-      responseType: "arraybuffer"
-    });
-
-    return response.data;
-  } catch (err) {
-    console.error("🔥 ElevenLabs Error:", err.response?.data || err.message);
-    return null;
-  }
 }
 
 // ==========================
 // 📞 START CALL
 // ==========================
 app.get("/start", (req, res) => {
-  const session = getSession("default");
-  session.state = "GREETING";
-
   const openingLine =
     "Hi! This is Alex from SecureLife Insurance. Can I take 30 seconds to explain a new protection plan?";
 
-  session.history.push({ role: "ai", text: openingLine });
-
-  res.json({
-    reply: openingLine,
-    nextAction: "LISTEN"
-  });
+  res.json({ reply: openingLine, nextAction: "LISTEN" });
 });
 
 // ==========================
@@ -196,49 +197,45 @@ app.get("/start", (req, res) => {
 app.post("/ask", async (req, res) => {
   const { message, sessionId = "default" } = req.body;
 
-  const session = getSession(sessionId);
-
   if (!message) {
-    return res.json({ reply: "No input detected", nextAction: "LISTEN" });
+    return res.json({ reply: "No input detected" });
   }
 
-  session.history.push({ role: "user", text: message });
+  const session = getSession(sessionId);
 
   const intent = detectIntent(message);
   const action = decideAction(intent, session);
-  const recommendedPlan = recommendPlan(message);
+  const plan = recommendPlan(message);
 
-  const basePersona = `
+  // 🔥 Emotion detection
+  const emotionData = await detectEmotion(message);
+  const emotion = emotionData.emotion || "neutral";
+
+  const systemPrompt = `
 You are a top-performing INSURANCE SALES ADVISOR.
-- Speak like a real human on a phone call
-- Keep responses 1–2 sentences
-- Always end with a question
-- Build trust first, then sell naturally
-`;
 
-  const planContext = `
-Plan:
-Name: ${recommendedPlan.name}
-Price: ${recommendedPlan.price}
-Cover: ${recommendedPlan.cover}
-Pitch: ${recommendedPlan.pitch}
-`;
+User emotion: ${emotion}
+Tone rules:
+- angry → calm and reassuring
+- sad → empathetic
+- happy → energetic
+- neutral → normal
 
-  const systemPrompt = `${basePersona}
-${planContext}
+Plan: ${plan.name} (${plan.price})
+
 User said: "${message}"
-Action: ${action}
-Respond naturally and ask ONE question.
+Respond naturally in 1–2 sentences and ask ONE question.
 `;
 
   try {
-    // ==========================
-    // 🧠 GEMINI CALL
-    // ==========================
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
-        contents: [{ parts: [{ text: systemPrompt }] }]
+        contents: [
+          {
+            parts: [{ text: systemPrompt }],
+          },
+        ],
       }
     );
 
@@ -246,62 +243,36 @@ Respond naturally and ask ONE question.
       response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
       "Sorry, I couldn't respond.";
 
-    session.history.push({ role: "ai", text: reply });
-
     // ==========================
-    // 🔊 VOICE GENERATION
+    // 💾 STORE LEAD WHEN INTERESTED
     // ==========================
-    const audioBuffer = await generateSpeech(reply);
+    if (action === "CLOSE_DEAL") {
+      await storeLead({
+        name: "Prospect",
+        phone: "unknown",
+        interest: plan.name,
+        query: message,
+      });
+    }
 
     res.json({
       reply,
-      audio: audioBuffer ? audioBuffer.toString("base64") : null,
-      nextAction: action,
-      recommendedPlan: recommendedPlan.name,
-      shouldContinue: true
+      emotion,
     });
-  } catch (error) {
-    console.error("Gemini Error:", error.response?.data || error.message);
-
-    res.json({
-      reply: "AI service error",
-      shouldContinue: false
-    });
+  } catch (err) {
+    console.error("Gemini Error:", err.message);
+    res.json({ reply: "AI error" });
   }
 });
 
 // ==========================
-// 🔊 CLEAN TTS ENDPOINT (BEST PRACTICE)
-// ==========================
-app.post("/tts", async (req, res) => {
-  const { text } = req.body;
-
-  const audioBuffer = await generateSpeech(text);
-
-  if (!audioBuffer) {
-    return res.status(500).send("TTS failed");
-  }
-
-  res.set({
-    "Content-Type": "audio/mpeg",
-    "Content-Length": audioBuffer.length
-  });
-
-  res.send(audioBuffer);
-});
-
-// ==========================
-// HEALTH CHECK
+// HEALTH
 // ==========================
 app.get("/", (req, res) => {
-  res.send("🚀 Insurance AI Telecaller Running");
+  res.send("🚀 AI Telecaller Running");
 });
 
 // ==========================
-// START SERVER
-// ==========================
-const PORT = 3000;
-
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+app.listen(3000, () => {
+  console.log("🚀 Server running on http://localhost:3000");
 });

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>AI Voice Caller (ElevenLabs)</title>
+  <title>AI Voice Caller (US Voice Upgrade)</title>
 
   <style>
     body {
@@ -94,7 +94,7 @@
 
 <div class="container">
 
-  <h2>📞 AI Voice Caller</h2>
+  <h2>📞 AI Voice Caller (US Voice)</h2>
   <div class="status" id="status">Idle</div>
 
   <div class="chat-box" id="chatBox">
@@ -115,7 +115,7 @@
 
 let isCallActive = false;
 let isSpeaking = false;
-let currentAudio = null;
+let selectedVoice = null;
 
 // ==========================
 // UI HELPERS
@@ -136,44 +136,68 @@ function addMessage(role, text) {
 }
 
 // ==========================
-// 🔊 PLAY AUDIO FROM /tts (NEW FIX)
+// 🇺🇸 LOAD US VOICE
 // ==========================
-async function playAudioFromTTS(text, onEnd) {
-  try {
-    const res = await fetch("http://localhost:3000/tts", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text })
-    });
+function loadVoices() {
+  const voices = window.speechSynthesis.getVoices();
 
-    if (!res.ok) throw new Error("TTS failed");
+  selectedVoice =
+    voices.find(v =>
+      v.lang === "en-US" &&
+      (
+        v.name.toLowerCase().includes("google") ||
+        v.name.toLowerCase().includes("microsoft") ||
+        v.name.toLowerCase().includes("david") ||
+        v.name.toLowerCase().includes("aria") ||
+        v.name.toLowerCase().includes("zira")
+      )
+    ) || voices.find(v => v.lang === "en-US");
 
-    const audioBlob = await res.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
+  console.log("🎤 Voice selected:", selectedVoice?.name);
+}
 
-    if (currentAudio) {
-      currentAudio.pause();
-    }
+window.speechSynthesis.onvoiceschanged = loadVoices;
+loadVoices();
 
-    currentAudio = new Audio(audioUrl);
+// ==========================
+// 🧠 HUMANIZE TEXT
+// ==========================
+function humanizeText(text) {
+  return text
+    .replace(/([.!?])\s*/g, "$1 ... ")
+    .replace(/\b(very|really)\b/g, "")
+    .trim();
+}
 
-    isSpeaking = true;
-    setStatus("AI Speaking... 🔊");
+// ==========================
+// 🔊 US HUMAN SPEECH ENGINE
+// ==========================
+function speakHuman(text, onEnd) {
+  if (!isCallActive) return;
 
-    currentAudio.play();
+  const utterance = new SpeechSynthesisUtterance();
 
-    currentAudio.onended = () => {
-      isSpeaking = false;
-      setStatus("Listening... 🎤");
+  utterance.voice = selectedVoice;
+  utterance.lang = "en-US";
 
-      if (onEnd && isCallActive) onEnd();
-    };
+  utterance.rate = 1.02;   // natural
+  utterance.pitch = 0.98;  // human tone
+  utterance.volume = 1;
 
-  } catch (err) {
-    console.error("Audio error:", err);
-    setStatus("Audio playback failed");
-    if (onEnd) onEnd();
-  }
+  utterance.text = humanizeText(text);
+
+  setStatus("AI Speaking... 🔊");
+
+  isSpeaking = true;
+
+  utterance.onend = () => {
+    isSpeaking = false;
+    setStatus("Listening... 🎤");
+    if (onEnd && isCallActive) onEnd();
+  };
+
+  speechSynthesis.cancel();
+  speechSynthesis.speak(utterance);
 }
 
 // ==========================
@@ -226,8 +250,7 @@ async function sendToAI(message) {
 
     addMessage("bot", data.reply);
 
-    // 🔥 IMPORTANT CHANGE: use /tts instead of base64
-    await playAudioFromTTS(data.reply, () => {
+    speakHuman(data.reply, () => {
       listen();
     });
 
@@ -250,7 +273,7 @@ async function startCall() {
 
     addMessage("bot", data.reply);
 
-    await playAudioFromTTS(data.reply, () => {
+    speakHuman(data.reply, () => {
       listen();
     });
 
@@ -269,12 +292,7 @@ function stopCall() {
 
   setStatus("Call Ended");
 
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio = null;
-  }
-
-  window.speechSynthesis.cancel();
+  speechSynthesis.cancel();
 }
 
 // ==========================

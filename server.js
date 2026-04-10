@@ -3,18 +3,29 @@ import dotenv from "dotenv";
 import cors from "cors";
 import axios from "axios";
 import { createClient } from "@supabase/supabase-js";
+import Groq from "groq-sdk";
 
 dotenv.config();
 
+// ==========================
+// EXPRESS APP INIT
+// ==========================
 const app = express();
 
 // ==========================
-// 🔐 SUPABASE SETUP
+// SUPABASE SETUP
 // ==========================
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY
 );
+
+// ==========================
+// GROQ (LLAMA BRAIN)
+// ==========================
+const groq = new Groq({
+  apiKey: process.env.GROQ_API_KEY,
+});
 
 // ==========================
 // MIDDLEWARE
@@ -25,14 +36,11 @@ app.use(express.json());
 console.log("🔥 Insurance AI Telecaller Server Running");
 
 // ==========================
-// 🧠 EMOTION DETECTION (FastAPI)
+// EMOTION DETECTION (FastAPI)
 // ==========================
 async function detectEmotion(text) {
   try {
-    const res = await axios.post(
-      "http://127.0.0.1:5001/emotion",
-      { text }
-    );
+    const res = await axios.post("http://127.0.0.1:5001/emotion", { text });
     return res.data;
   } catch (err) {
     console.error("Emotion API Error:", err.message);
@@ -41,7 +49,7 @@ async function detectEmotion(text) {
 }
 
 // ==========================
-// 🧠 STORE LEAD (SUPABASE)
+// STORE LEAD (SUPABASE)
 // ==========================
 async function storeLead(data) {
   try {
@@ -54,18 +62,15 @@ async function storeLead(data) {
       },
     ]);
 
-    if (error) {
-      console.log("❌ Error storing lead:", error.message);
-    } else {
-      console.log("✅ Lead stored successfully");
-    }
+    if (error) console.log("❌ Supabase error:", error.message);
+    else console.log("✅ Lead stored successfully");
   } catch (err) {
     console.log("❌ Supabase crash:", err.message);
   }
 }
 
 // ==========================
-// 🧠 INSURANCE PRODUCT CATALOG
+// INSURANCE PLANS
 // ==========================
 const insurancePlans = [
   {
@@ -73,102 +78,76 @@ const insurancePlans = [
     type: "Life Insurance",
     price: "₹899/month",
     cover: "₹1 Crore",
-    perks: [
-      "Accidental death cover included",
-      "Critical illness rider (25 diseases)",
-      "Tax benefits under 80C",
-      "Family income protection",
-    ],
-    pitch: "Best for family financial protection and long-term security.",
+    perks: ["Accidental death cover", "Critical illness", "Tax benefits"],
+    pitch: "Best for family protection.",
   },
   {
     name: "HealthShield MaxCare",
     type: "Health Insurance",
     price: "₹699/month",
     cover: "₹15 Lakhs",
-    perks: [
-      "Cashless hospital network (5000+ hospitals)",
-      "Pre + post hospitalization cover",
-      "Free annual health checkup",
-      "No claim bonus up to 50%",
-    ],
-    pitch: "Best for rising medical costs and emergency protection.",
+    perks: ["Cashless hospitals", "No claim bonus"],
+    pitch: "Best for medical emergencies.",
   },
   {
     name: "WealthGrow Endowment Plan",
     type: "Investment + Insurance",
     price: "₹1500/month",
-    cover: "₹25 Lakhs + maturity bonus",
-    perks: [
-      "Guaranteed maturity returns",
-      "Life cover during policy term",
-      "Long-term wealth creation",
-      "Low-risk savings instrument",
-    ],
-    pitch: "Perfect for wealth creation + insurance protection combined.",
+    cover: "₹25 Lakhs",
+    perks: ["Guaranteed returns", "Life cover"],
+    pitch: "Wealth + protection combo.",
   },
   {
     name: "FutureSecure Child Plan",
-    type: "Child Education",
+    type: "Child Plan",
     price: "₹1200/month",
     cover: "₹20 Lakhs",
-    perks: [
-      "Guaranteed education funding",
-      "Premium waiver on parent death",
-      "Milestone payouts",
-      "Inflation protection option",
-    ],
-    pitch: "Designed to secure your child’s education future.",
+    perks: ["Education funding", "Milestone payouts"],
+    pitch: "Secure child future.",
   },
 ];
 
 // ==========================
-// 🧠 SESSION MEMORY
+// SESSION MEMORY
 // ==========================
 const sessions = {};
 
 function getSession(sessionId = "default") {
   if (!sessions[sessionId]) {
-    sessions[sessionId] = {
-      state: "GREETING",
-      history: [],
-    };
+    sessions[sessionId] = { state: "GREETING", history: [] };
   }
   return sessions[sessionId];
 }
 
 // ==========================
-// 🧠 INTENT DETECTION
+// INTENT DETECTION
 // ==========================
 function detectIntent(message = "") {
   const msg = message.toLowerCase();
 
   if (msg.includes("not interested")) return "OBJECTION";
   if (msg.includes("busy")) return "DELAY";
-  if (msg.includes("price") || msg.includes("expensive")) return "PRICE";
+  if (msg.includes("price")) return "PRICE";
   if (msg.includes("later")) return "FOLLOW_UP";
-  if (msg.includes("yes") || msg.includes("ok") || msg.includes("sure"))
-    return "INTERESTED";
+  if (msg.match(/\b(yes|ok|sure|interested)\b/)) return "INTERESTED";
 
   return "NORMAL";
 }
 
 // ==========================
-// 🧠 DECISION ENGINE
+// DECISION ENGINE
 // ==========================
 function decideAction(intent, session) {
   if (intent === "OBJECTION") return "HANDLE_OBJECTION";
   if (intent === "PRICE") return "HANDLE_PRICE";
   if (intent === "DELAY") return "FOLLOW_UP";
   if (intent === "INTERESTED") return "CLOSE_DEAL";
-
   if (session.state === "GREETING") return "ASK_QUESTION";
-
   return "CONTINUE";
 }
 
 // ==========================
-// 🎯 PLAN RECOMMENDER
+// PLAN RECOMMENDER
 // ==========================
 function recommendPlan(message = "") {
   const msg = message.toLowerCase();
@@ -182,24 +161,23 @@ function recommendPlan(message = "") {
 }
 
 // ==========================
-// 📞 START CALL
+// START CALL
 // ==========================
 app.get("/start", (req, res) => {
-  const openingLine =
-    "Hi! This is Alex from SecureLife Insurance. Can I take 30 seconds to explain a new protection plan?";
-
-  res.json({ reply: openingLine, nextAction: "LISTEN" });
+  res.json({
+    reply:
+      "Hi! This is ABC from SecureLife Insurance. Can I take 30 seconds to explain a plan?",
+    nextAction: "LISTEN",
+  });
 });
 
 // ==========================
-// 🤖 MAIN AI ENGINE
+// 🤖 MAIN AI ENGINE (LLAMA BRAIN)
 // ==========================
 app.post("/ask", async (req, res) => {
   const { message, sessionId = "default" } = req.body;
 
-  if (!message) {
-    return res.json({ reply: "No input detected" });
-  }
+  if (!message) return res.json({ reply: "No input detected" });
 
   const session = getSession(sessionId);
 
@@ -207,7 +185,6 @@ app.post("/ask", async (req, res) => {
   const action = decideAction(intent, session);
   const plan = recommendPlan(message);
 
-  // 🔥 Emotion detection
   const emotionData = await detectEmotion(message);
   const emotion = emotionData.emotion || "neutral";
 
@@ -215,8 +192,9 @@ app.post("/ask", async (req, res) => {
 You are a top-performing INSURANCE SALES ADVISOR.
 
 User emotion: ${emotion}
+
 Tone rules:
-- angry → calm and reassuring
+- angry → calm
 - sad → empathetic
 - happy → energetic
 - neutral → normal
@@ -224,28 +202,34 @@ Tone rules:
 Plan: ${plan.name} (${plan.price})
 
 User said: "${message}"
-Respond naturally in 1–2 sentences and ask ONE question.
+
+Respond in 1–2 lines and ask ONE question.
 `;
 
   try {
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
-      {
-        contents: [
-          {
-            parts: [{ text: systemPrompt }],
-          },
-        ],
-      }
-    );
+    // ==========================
+    // 🧠 LLAMA (GROQ BRAIN)
+    // ==========================
+    const response = await groq.chat.completions.create({
+      model: "llama-3.1-8b-instant",
+      messages: [
+        {
+          role: "system",
+          content: systemPrompt,
+        },
+        {
+          role: "user",
+          content: message,
+        },
+      ],
+      temperature: 0.7,
+    });
 
     const reply =
-      response.data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      response?.choices?.[0]?.message?.content ||
       "Sorry, I couldn't respond.";
 
-    // ==========================
-    // 💾 STORE LEAD WHEN INTERESTED
-    // ==========================
+    // STORE LEAD
     if (action === "CLOSE_DEAL") {
       await storeLead({
         name: "Prospect",
@@ -255,23 +239,26 @@ Respond naturally in 1–2 sentences and ask ONE question.
       });
     }
 
-    res.json({
-      reply,
-      emotion,
-    });
+    res.json({ reply, emotion });
   } catch (err) {
-    console.error("Gemini Error:", err.message);
-    res.json({ reply: "AI error" });
+    console.error("🔥 LLAMA ERROR:", err.message || err);
+
+    res.status(500).json({
+      reply: "AI error",
+      debug: err.message || err,
+    });
   }
 });
 
 // ==========================
-// HEALTH
+// HEALTH CHECK
 // ==========================
 app.get("/", (req, res) => {
   res.send("🚀 AI Telecaller Running");
 });
 
+// ==========================
+// START SERVER
 // ==========================
 app.listen(3000, () => {
   console.log("🚀 Server running on http://localhost:3000");
